@@ -7,7 +7,6 @@ from functools import cache, wraps
 from textwrap import dedent
 from threading import Thread
 from typing import Callable, Coroutine, Iterator, Literal, Self, assert_never, cast
-from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from .types import Shareable
 
@@ -32,10 +31,7 @@ class Runner:
     def __init__(self, *, workers: int) -> None:
         self._tasks = create_queue()
         self._results = create_queue()
-        self._aio_tasks: WeakValueDictionary[int, asyncio.Future] = WeakValueDictionary()
-        self._loops: WeakKeyDictionary[asyncio.Future, asyncio.AbstractEventLoop] = (
-            WeakKeyDictionary()
-        )
+        self._futures: dict[int, tuple[asyncio.Future, asyncio.AbstractEventLoop]] = {}
         self._code = dedent("""
             import importlib
             import importlib.util
@@ -110,13 +106,13 @@ class Runner:
                     # Interpreter closed
                     workers -= 1
                 case int(i), False, str(reason):
-                    future = self._aio_tasks[i]
-                    self._loops[future].call_soon_threadsafe(
+                    future, loop = self._futures[i]
+                    loop.call_soon_threadsafe(
                         future.set_exception, InterpreterError(reason)
                     )
                 case int(i), True, result:
-                    future = self._aio_tasks[i]
-                    self._loops[future].call_soon_threadsafe(self._aio_tasks[i].set_result, result)
+                    future, loop = self._futures[i]
+                    loop.call_soon_threadsafe(future.set_result, result)
                 case other:
                     raise InterpreterError("Unexpected queue value: ", other)
 
@@ -164,8 +160,7 @@ class Runner:
         assert not self.stopped, "Runner must be started"
         future = asyncio.Future()
         id_ = id(future)
-        self._aio_tasks[id_] = future
-        self._loops[future] = asyncio.get_running_loop()
+        self._futures[id_] = future, asyncio.get_running_loop()
         self._tasks.put((id_, *module_info, args, tuple(kwargs.items())))
         return await future
 
