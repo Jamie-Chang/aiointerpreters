@@ -106,12 +106,12 @@ class Runner:
                     # Interpreter closed
                     workers -= 1
                 case int(i), False, str(reason):
-                    future, loop = self._futures[i]
+                    future, loop = self._futures.pop(i)
                     loop.call_soon_threadsafe(
                         future.set_exception, InterpreterError(reason)
                     )
                 case int(i), True, result:
-                    future, loop = self._futures[i]
+                    future, loop = self._futures.pop(i)
                     loop.call_soon_threadsafe(future.set_result, result)
                 case other:
                     raise InterpreterError("Unexpected queue value: ", other)
