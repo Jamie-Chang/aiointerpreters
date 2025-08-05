@@ -41,3 +41,6 @@ sequenceDiagram
   W2 -->> C: result queue
   C -->> M: set_result
 ```
+
+## Examples
+See [examples](./examples/).
