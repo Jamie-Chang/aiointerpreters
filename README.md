@@ -38,8 +38,8 @@ The [`concurrent.interpreters`](https://docs.python.org/el/3.15/library/concurre
 
 There are several high level mechanisms to access subinterpreters, such as [`Interpreter.call_in_thread`](https://docs.python.org/3.14/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.call_in_thread) and  [`InterpreterPoolExecutor`](https://docs.python.org/3.14/library/concurrent.futures.html#interpreterpoolexecutor). But they both come with drawbacks:
 
-- `call_in_thread`: only works for top level functions with no arguments.
 - `InterpreterPoolExecutor`: uses pickles to pass data between interpreters similar to `ProcessPoolExecutor`.
+- `call_in_thread`: will use fast shared memory to pass arguments but has no mechanism to retrieve the results. It's also a lot harder to reuse interpreters.
 
 There are no simple options to take advantage of the [fast shared memeory](https://docs.python.org/3.14/library/concurrent.interpreters.html#sharing-objects).
 
