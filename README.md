@@ -13,6 +13,24 @@ pdm add aiointerpreters
 pipenv install aiointerpreters
 ```
 
+## Basic Usage
+
+Suppose you want ot run some CPU bound function in parallel.
+
+Create a `Runner` and call the function in parallel using asyncio's `gather` or `TaskGroup`:
+```py
+with Runner(workers=5).start() as runner:
+    await asyncio.gather(runner.run(cpu_bound_function(5), cpu_bound_function(5)))
+```
+
+### Restrictions
+The CPU bound function must be importable and a top level function. All its arguments and return value must be [`Shareable`](https://github.com/Jamie-Chang/aiointerpreters/blob/main/src/aiointerpreters/types.py):
+
+```py
+type Shareable = (
+    str | bytes | int | float | bool | None | tuple[Shareable, ...] | Queue | memoryview
+)
+```
 
 ## Motivation
 The [`concurrent.interpreters`](https://docs.python.org/el/3.15/library/concurrent.interpreters.html) api will be added in Python 3.14.
@@ -43,4 +61,4 @@ sequenceDiagram
 ```
 
 ## Examples
-See [examples](./examples/).
+See [examples](https://github.com/Jamie-Chang/aiointerpreters/tree/main/examples).
