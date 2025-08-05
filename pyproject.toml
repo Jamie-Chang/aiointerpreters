@@ -1,0 +1,46 @@
+[project]
+name = "aiointerpreters"
+version = "0.1.0"
+description = "Run CPU bound code with subinterpreters using asyncio."
+readme = "README.md"
+authors = [
+    { name = "Jamie Chang", email = "jamie.cheng.chang@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = []
+license = { file = "LICENSE" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.14",
+]
+
+[project.scripts]
+aiointerpreters = "aiointerpreters:main"
+
+[project.urls]
+HomePage = "https://github.com/Jamie-Chang/aiointerpreters"
+
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    'F', # Pyflakes
+    'E', # pycodestyle (Error)
+    'I', # isort
+]
+
+[build-system]
+requires = ["uv_build>=0.8.4,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.7",
+]
+examples = [
+    "beautifulsoup4>=4.13.4",
+    "httpx>=0.28.1",
+]
