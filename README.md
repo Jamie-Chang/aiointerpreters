@@ -29,11 +29,6 @@ There are no simple options to take advantage of the [fast shared memeory](https
 We must run the interpreters in threads to achieve parallelism. In order to notify futures in the background we must also have a coordniator thread to handle the results.
 
 ```mermaid
----
-config:
-  theme: neutral
-  look: neo
----
 sequenceDiagram
   participant M as Main
   participant C as Coordinator
