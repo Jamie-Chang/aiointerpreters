@@ -20,7 +20,7 @@ Suppose you want ot run some CPU bound function in parallel.
 Create a `Runner` and call the function in parallel using asyncio's `gather` or `TaskGroup`:
 ```py
 with Runner(workers=5).start() as runner:
-    await asyncio.gather(runner.run(cpu_bound_function(5), cpu_bound_function(5)))
+    await asyncio.gather(runner.run(cpu_bound_function, 5), runner.run(cpu_bound_function, 5))
 ```
 
 ### Restrictions
