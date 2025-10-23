@@ -2,7 +2,6 @@ import asyncio
 import inspect
 from concurrent.interpreters import create, create_queue
 from contextlib import contextmanager
-from enum import StrEnum, auto
 from functools import cache, wraps
 from textwrap import dedent
 from threading import Thread
@@ -19,12 +18,6 @@ class InterpreterError(Exception): ...
 
 
 class RunnerError(Exception): ...
-
-
-class State(StrEnum):
-    STOPPED = auto()
-    STARTED = auto()
-    STOPPING = auto()
 
 
 class Runner:
@@ -54,7 +47,6 @@ class Runner:
             while True:
                 match tasks.get():
                     case None:
-                        results.put(None)
                         break
                     case id, entry_point_type, module, name, args, kwargs:
                         try:
@@ -66,7 +58,6 @@ class Runner:
                             results.put((id, True, res))
         """)
         self.workers = workers
-        self.stopped = True
         self.threads = []
 
     def _worker(self) -> None:
@@ -81,35 +72,38 @@ class Runner:
 
         This will create the workers eagerly.
         """
-        threads = [
-            Thread(target=self._coordinator, daemon=True),
-            *(Thread(target=self._worker, daemon=True) for _ in range(self.workers)),
-        ]
-        for t in threads:
-            t.start()
-        self.stopped = False
+        coordinator = Thread(target=self._coordinator, daemon=True)
+        workers = [Thread(target=self._worker, daemon=True) for _ in range(self.workers)]
+        coordinator.start()
+        for worker in workers:
+            worker.start()
+
         try:
             yield self
         finally:
+            # Signal to the workers
             for _ in range(self.workers):
                 self._tasks.put(None)
-            self.stopped = True
 
-            for t in threads:
-                t.join()
+            # Wait for workers to exit
+            for worker in workers:
+                worker.join()
+
+            # Signal to the coordinator
+            self._results.put(None)
+
+            # Wait for coordinator to exit
+            coordinator.join()
 
     def _coordinator(self) -> None:
-        workers = self.workers
-        while workers > 0:
+        while True:
             match self._results.get():
                 case None:
                     # Interpreter closed
-                    workers -= 1
+                    return
                 case int(i), False, str(reason):
                     future, loop = self._futures.pop(i)
-                    loop.call_soon_threadsafe(
-                        future.set_exception, InterpreterError(reason)
-                    )
+                    loop.call_soon_threadsafe(future.set_exception, InterpreterError(reason))
                 case int(i), True, result:
                     future, loop = self._futures.pop(i)
                     loop.call_soon_threadsafe(future.set_result, result)
@@ -157,7 +151,6 @@ class Runner:
         *args: Shareable,
         **kwargs: Shareable,
     ) -> object:
-        assert not self.stopped, "Runner must be started"
         future = asyncio.Future()
         id_ = id(future)
         self._futures[id_] = future, asyncio.get_running_loop()
