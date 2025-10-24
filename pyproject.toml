@@ -1,6 +1,6 @@
 [project]
 name = "aiointerpreters"
-version = "0.4.0"
+version = "0.5.0"
 description = "Run CPU bound code with subinterpreters using asyncio."
 readme = "README.md"
 authors = [
