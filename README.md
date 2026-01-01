@@ -13,18 +13,40 @@ pdm add aiointerpreters
 pipenv install aiointerpreters
 ```
 
-## Basic Usage
+## Runner
+See [runner docs](./runner.md), initially the library only exposes a `Runner` class with a custom interface to schedule asyncio tasks. 
 
-Suppose you want ot run some CPU bound function in parallel.
+Since the official release of 3.14 and the stablisation of a lot of the interpreter features, this offers no advantage to the standard library `InterpreterPoolExecutor` and therefore is not something that will be updated going forward.
 
-Create a `Runner` and call the function in parallel using asyncio's `gather` or `TaskGroup`:
+## Executor
+This library implements a new `InterpreterThreadPoolExecutor`. This is a drop in replacement for the standard `ThreadPoolExecutor` with options to dynamically switch to using an `Interpreter`.
+
 ```py
-with Runner(workers=5).start() as runner:
-    await asyncio.gather(runner.run(cpu_bound_function, 5), runner.run(cpu_bound_function, 5))
+from aiointerpreters.executors import InterpreterThreadPoolExecutor, interpreter
+
+
+with InterpreterThreadPoolExecutor() as executor:
+    executor.map(interpreter(cpu_bound), (argument for _ in range(runs)))
+```
+
+Any function tagged with `interpreter` decorator will be dispatched to an isolated interpreter in a separate thread. Otherwise this follows the original behaviour of `ThreadPoolExecutor`.
+
+Additionally, `InterpreterThreadPoolExecutor` can be set as the default executor for asyncio and used with `asyncio.to_thread`:
+
+```py
+# Shortcut 
+InterpreterThreadPoolExecutor().set_as_event_loop_default()
+
+# or 
+asyncio.get_running_loop().set_default_executor(InterpreterThreadPoolExecutor())
+
+async with asyncio.TaskGroup() as tg:
+    tg.create_task(asyncio.to_thread(interpreter(cpu_bound), argument))
+    tg.create_task(asyncio.to_thread(io_bound, argument))
 ```
 
 ### Restrictions
-The CPU bound function must be importable and a top level function. All its arguments and return value must be [`Shareable`](https://github.com/Jamie-Chang/aiointerpreters/blob/main/src/aiointerpreters/types.py):
+The CPU bound function must be picklable. All its arguments and return value must be pickables or [`Shareable`](https://github.com/Jamie-Chang/aiointerpreters/blob/main/src/aiointerpreters/types.py):
 
 ```py
 type Shareable = (
@@ -32,33 +54,14 @@ type Shareable = (
 )
 ```
 
-## Motivation
-The [`concurrent.interpreters`](https://docs.python.org/el/3.15/library/concurrent.interpreters.html) api will be added in Python 3.14.
+### Motivation
+`concurrent.future.InterpreterPoolExecutor` is currently a great choice if you know you always need an interpreter to run your code. However it's rarely something you want to do by default since you have to always consider the restrictions mentioned above.
 
+You can choose to run a ThreadPoolExecutor alongside an InterpreterPoolExecutor but since they both maintain a pool of threads under the hood, it'll actually save some resources to share the pool of threads. And having one good default option just makes things easier. 
 
-There are several high level mechanisms to access subinterpreters, such as [`Interpreter.call_in_thread`](https://docs.python.org/3.14/library/concurrent.interpreters.html#concurrent.interpreters.Interpreter.call_in_thread) and  [`InterpreterPoolExecutor`](https://docs.python.org/3.14/library/concurrent.futures.html#interpreterpoolexecutor). But they both come with drawbacks:
+### Using `asyncio.to_thread`
+Note: since `ContextVars` are [not pickleable](https://peps.python.org/pep-0567/#making-context-objects-picklable) `InterpreterThreadPoolExecutor` works around it by discarding the context, this is not slightly hacky and may change in the future.
 
-- `InterpreterPoolExecutor`: uses pickles to pass data between interpreters similar to `ProcessPoolExecutor`.
-- `call_in_thread`: will use fast shared memory to pass arguments but has no mechanism to retrieve the results. It's also a lot harder to reuse interpreters.
-
-There are no simple options to take advantage of the [fast shared memeory](https://docs.python.org/3.14/library/concurrent.interpreters.html#sharing-objects).
-
-## Architecture
-We must run the interpreters in threads to achieve parallelism. In order to notify futures in the background we must also have a coordniator thread to handle the results.
-
-```mermaid
-sequenceDiagram
-  participant M as Main
-  participant C as Coordinator
-  participant W1 as Worker 1
-  participant W2 as Worker 2
-  M ->> W1: task queue
-  M ->> W2: task queue
-  W1 -->> C: result queue
-  C -->> M: notify
-  W2 -->> C: result queue
-  C -->> M: set_result
-```
 
 ## Examples
 See [examples](https://github.com/Jamie-Chang/aiointerpreters/tree/main/examples).
