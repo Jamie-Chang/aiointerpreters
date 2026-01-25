@@ -3,9 +3,7 @@ name = "aiointerpreters"
 version = "0.6.0"
 description = "Run CPU bound code with subinterpreters using asyncio."
 readme = "README.md"
-authors = [
-    { name = "Jamie Chang", email = "jamie.cheng.chang@gmail.com" }
-]
+authors = [{ name = "Jamie Chang", email = "jamie.cheng.chang@gmail.com" }]
 requires-python = ">=3.14"
 dependencies = []
 license = { file = "LICENSE" }
@@ -37,10 +35,8 @@ requires = ["uv_build>=0.8.4,<0.9.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
-dev = [
-    "ruff>=0.12.7",
-]
-examples = [
-    "beautifulsoup4>=4.13.4",
-    "httpx>=0.28.1",
-]
+dev = ["pytest>=9.0.2", "pytest-asyncio>=1.3.0", "ruff>=0.12.7"]
+examples = ["beautifulsoup4>=4.13.4", "httpx>=0.28.1"]
+
+[tool.pytest]
+filterwarnings = ["ignore::RuntimeWarning"]
